@@ -4,6 +4,6 @@
    https://script.google.com/macros/s/AKfy.../exec и ключ редактора из листа _meta. */
 
 window.SYNC_CONFIG = {
-  url: '',
-  key: ''
+  url: 'https://script.google.com/macros/s/AKfycbxvxWrgs-rWPM2fyaZssMS3nfQU4J4DEZdMJ_ikSboKS0wA60TQbj9i8SiQjfbPNriEdg/exec',
+  key: 'ba1a66da'
 };
