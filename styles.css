@@ -1042,11 +1042,22 @@ select,
 }
 
 @media (max-width: 720px) {
-  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
+  html, body { overscroll-behavior: none; }
+  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 12px; position: sticky; top: 0; z-index: 30; }
   .brand h1 { font-size: 17px; }
-  .search { width: 100%; order: 3; }
-  .tools { width: 100%; }
+  .tools { width: 100%; flex-wrap: wrap; row-gap: 8px; }
+  .search { width: 100%; order: -1; }
+  /* выгрузка и загрузка JSON — действия с компьютера, на телефоне только мешают */
+  #export, #import-label { display: none; }
+  .btn { padding: 7px 11px; font-size: 12px; }
+  .zoom button { width: 30px; height: 30px; font-size: 15px; }
+  .search input { padding: 7px 10px 7px 30px; }
   .legend { display: none; }
+  /* карточка человека открывается на весь экран */
+  .panel { max-width: none; }
+  .panel-close { width: 44px; height: 44px; }
+  /* на телефоне карточки должны отзываться на нажатие, а не подсвечиваться серым */
+  .person, .fold, .btn { -webkit-tap-highlight-color: transparent; }
 }
 
 /* ---------- печать ---------- */

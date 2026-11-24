@@ -13,6 +13,8 @@
   var timer = null;
   var pending = null;
   var busy = false;
+  var fails = 0;
+  var blocked = false;
 
   function pack(data) {
     return {
@@ -63,20 +65,40 @@
   }
 
   function flush() {
-    if (!URL || !pending || busy) return;
+    if (!URL || !pending || busy || blocked) return;
     busy = true;
     var data = pending;
     request({ action: 'save', key: cfg.key || '', data: data }).then(function (out) {
       pending = null;
+      fails = 0;
       if (out.updated) setMark(out.updated);
       window.FamilySync.status = 'saved ' + new Date().toLocaleTimeString();
     }).catch(function (err) {
-      window.FamilySync.status = 'ошибка: ' + (err && err.message ? err.message : err);
-      console.warn('Не удалось сохранить в общую таблицу:', err);
-      timer = setTimeout(flush, 5000);
+      var message = err && err.message ? err.message : String(err);
+
+      /* неверный ключ — дальше стучаться бессмысленно */
+      if (message.indexOf('ключ') >= 0) {
+        blocked = true;
+        pending = null;
+        window.FamilySync.status = 'нет доступа: ' + message;
+        console.warn('Сохранение в общую таблицу отключено:', message);
+        return;
+      }
+
+      fails++;
+      window.FamilySync.status = 'ошибка: ' + message;
+      console.warn('Не удалось сохранить в общую таблицу:', message);
+
+      /* три попытки, потом ждём следующей правки — иначе бесконечный цикл запросов */
+      if (fails < 3) {
+        clearTimeout(timer);
+        timer = setTimeout(flush, 5000);
+      } else {
+        pending = null;
+        fails = 0;
+      }
     }).then(function () {
       busy = false;
-      if (pending && timer === null) timer = setTimeout(flush, 3000);
     });
   }
 

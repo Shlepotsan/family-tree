@@ -1165,53 +1165,143 @@
     applyView();
   }
 
-  // Стартовый вид: линия семьи крупно, левый край дерева у края экрана
+  // Стартовый вид: линия семьи крупно, левый край дерева у края экрана.
+  // На телефоне — по центру карточки «это я», иначе половина дерева уезжает за экран.
   function startView() {
     var L = state.layout;
     if (!L) return;
     var self = state.people.filter(function (p) { return p.isSelf; })[0];
     var card = self ? L.cards.filter(function (c) { return c.id === self.id; })[0] : null;
-
-    state.view.s = 0.78;
     var cx = card ? card.x + card.w / 2 : L.width / 2;
     var cy = card ? card.y + card.h / 2 : L.height / 2;
-    state.view.x = Math.min(0, el.viewport.clientWidth / 2 - cx * state.view.s);
-    state.view.y = Math.min(0, el.viewport.clientHeight * 0.78 - cy * state.view.s);
+    var narrow = window.matchMedia ? window.matchMedia('(max-width: 720px)').matches : false;
+
+    state.view.s = 0.78;
+
+    if (narrow) {
+      state.view.x = el.viewport.clientWidth / 2 - cx * state.view.s;
+      state.view.y = el.viewport.clientHeight * 0.45 - cy * state.view.s;
+    } else {
+      state.view.x = Math.min(0, el.viewport.clientWidth / 2 - cx * state.view.s);
+      state.view.y = Math.min(0, el.viewport.clientHeight * 0.78 - cy * state.view.s);
+    }
     applyView();
   }
 
-  /* ==================== мышь и клавиатура ==================== */
+  /* ==================== мышь, палец и клавиатура ==================== */
 
-  var drag = null;
+  var drag = null;          // текущий перенос одним пальцем/мышью
+  var pointers = {};        // активные касания: pointerId -> {x, y}
+  var pinch = null;         // щипок: {dist, s}
+  var moved = false;        // это перенос, а не нажатие
 
-  el.viewport.addEventListener('pointerdown', function (e) {
-    if (e.button !== 0 || e.target.closest('.person')) return;
-    // гасим выделение текста, иначе оно перехватывает жест и перетаскивание «залипает»
-    e.preventDefault();
-    var sel = window.getSelection && window.getSelection();
-    if (sel && sel.rangeCount) sel.removeAllRanges();
-    drag = { x: e.clientX, y: e.clientY, vx: state.view.x, vy: state.view.y };
-    el.viewport.classList.add('dragging');
-    try { el.viewport.setPointerCapture(e.pointerId); } catch (err) {}
-  });
+  function activePointers() {
+    return Object.keys(pointers).map(function (id) { return pointers[id]; });
+  }
 
-  el.viewport.addEventListener('pointermove', function (e) {
-    if (!drag) return;
-    e.preventDefault();
-    state.view.x = drag.vx + (e.clientX - drag.x);
-    state.view.y = drag.vy + (e.clientY - drag.y);
-    applyView();
-  });
-
-  function endDrag() {
+  function stopEverything() {
+    pointers = {};
     drag = null;
+    pinch = null;
     el.viewport.classList.remove('dragging');
   }
 
-  el.viewport.addEventListener('pointerup', endDrag);
-  el.viewport.addEventListener('pointercancel', endDrag);
-  el.viewport.addEventListener('lostpointercapture', endDrag);
-  window.addEventListener('blur', endDrag);
+  el.viewport.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { el.viewport.setPointerCapture(e.pointerId); } catch (err) { /* старый браузер */ }
+
+    var count = Object.keys(pointers).length;
+
+    if (count === 2) {
+      /* второй палец: начинаем щипок, перенос отменяем */
+      drag = null;
+      var pair = activePointers();
+      pinch = { dist: Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y), s: state.view.s };
+      el.viewport.classList.add('dragging');
+      return;
+    }
+
+    if (count > 2) return;
+
+    moved = false;
+    drag = { x: e.clientX, y: e.clientY, vx: state.view.x, vy: state.view.y };
+    el.viewport.classList.add('dragging');
+
+    if (e.pointerType === 'mouse') {
+      /* гасим выделение текста, иначе оно перехватывает жест и перетаскивание «залипает» */
+      e.preventDefault();
+      var sel = window.getSelection && window.getSelection();
+      if (sel && sel.rangeCount) sel.removeAllRanges();
+    }
+  });
+
+  el.viewport.addEventListener('pointermove', function (e) {
+    if (pointers[e.pointerId]) {
+      pointers[e.pointerId].x = e.clientX;
+      pointers[e.pointerId].y = e.clientY;
+    }
+
+    if (pinch && Object.keys(pointers).length >= 2) {
+      e.preventDefault();
+      var pair = activePointers();
+      var dist = Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y);
+      if (pinch.dist > 0) {
+        var rect = el.viewport.getBoundingClientRect();
+        var cx = (pair[0].x + pair[1].x) / 2 - rect.left;
+        var cy = (pair[0].y + pair[1].y) / 2 - rect.top;
+        setScale(pinch.s * (dist / pinch.dist), cx, cy);
+        moved = true;
+      }
+      return;
+    }
+
+    if (!drag) return;
+
+    var dx = e.clientX - drag.x;
+    var dy = e.clientY - drag.y;
+    if (!moved && Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+    if (!moved) return;
+
+    e.preventDefault();
+    state.view.x = drag.vx + dx;
+    state.view.y = drag.vy + dy;
+    applyView();
+  });
+
+  function endPointer(e) {
+    delete pointers[e.pointerId];
+
+    var count = Object.keys(pointers).length;
+    if (count < 2) pinch = null;
+
+    if (count === 1) {
+      /* после щипка остался палец — продолжаем перенос с него */
+      var left = activePointers()[0];
+      drag = { x: left.x, y: left.y, vx: state.view.x, vy: state.view.y };
+      moved = true;
+      return;
+    }
+
+    if (count === 0) {
+      drag = null;
+      el.viewport.classList.remove('dragging');
+    }
+  }
+
+  el.viewport.addEventListener('pointerup', endPointer);
+  el.viewport.addEventListener('pointercancel', endPointer);
+  el.viewport.addEventListener('lostpointercapture', endPointer);
+  window.addEventListener('blur', stopEverything);
+
+  /* после переноса нажатие не должно открывать карточку человека */
+  el.viewport.addEventListener('click', function (e) {
+    if (!moved) return;
+    moved = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
 
   el.viewport.addEventListener('wheel', function (e) {
     e.preventDefault();
