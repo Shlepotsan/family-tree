@@ -339,54 +339,6 @@ select,
 .canvas svg .link.dim { stroke-opacity: 0.16; }
 .canvas svg .joint.dim { opacity: 0.25; }
 
-.gen-rail {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.gen-rail::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 104px;
-  background: linear-gradient(90deg, var(--paper) 58%, rgba(246, 241, 230, 0));
-}
-
-.gen-label {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 88px;
-  padding-right: 14px;
-  text-align: right;
-  color: var(--ink-3);
-  pointer-events: none;
-  transition: opacity .2s;
-}
-
-.gen-label b {
-  display: block;
-  font-family: var(--font-serif);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: .12em;
-  color: var(--ink-3);
-}
-
-.gen-label span {
-  display: block;
-  margin-top: 1px;
-  font-size: 8.5px;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  opacity: .8;
-}
-
 /* карточка персоны */
 
 .person {
@@ -1023,6 +975,33 @@ select,
 
 .toast button:hover { background: rgba(248, 243, 232, .14); }
 
+/* ---------- кнопка меню и «плюс» (только телефон) ---------- */
+
+.menu-toggle { display: none; }
+
+.fab {
+  position: fixed;
+  right: 16px;
+  bottom: 22px;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  box-shadow: 0 10px 22px -10px rgba(47, 93, 80, .85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fab:active { transform: scale(.95); }
+
 /* ---------- адаптив ---------- */
 
 @media (max-width: 1480px) {
@@ -1043,15 +1022,21 @@ select,
 
 @media (max-width: 720px) {
   html, body { overscroll-behavior: none; }
-  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 12px; position: sticky; top: 0; z-index: 30; }
-  .brand h1 { font-size: 17px; }
-  .tools { width: 100%; flex-wrap: wrap; row-gap: 8px; }
+  .topbar { flex-wrap: wrap; gap: 8px; padding: 6px 12px; position: sticky; top: 0; z-index: 30; }
+  .brand h1 { font-size: 15px; }
+  .brand p { display: none; }
+  .menu-toggle { display: inline-flex; margin-left: auto; width: 38px; height: 38px; align-items: center; justify-content: center; font-size: 17px; }
+  /* свёрнутое меню: одна строка с названием и «☰» */
+  .tools { display: none; width: 100%; flex-wrap: wrap; row-gap: 8px; }
+  .topbar.open .tools { display: flex; }
   .search { width: 100%; order: -1; }
   /* выгрузка и загрузка JSON — действия с компьютера, на телефоне только мешают */
   #export, #import-label { display: none; }
-  .btn { padding: 7px 11px; font-size: 12px; }
-  .zoom button { width: 30px; height: 30px; font-size: 15px; }
-  .search input { padding: 7px 10px 7px 30px; }
+  #add-person { display: none; }       /* на телефоне его заменяет круглая «+» */
+  .fab { display: flex; }
+  .btn { padding: 8px 12px; font-size: 12.5px; }
+  .zoom button { width: 34px; height: 34px; font-size: 16px; }
+  .search input { padding: 9px 12px 9px 30px; font-size: 14px; }
   .legend { display: none; }
   /* карточка человека открывается на весь экран */
   .panel { max-width: none; }

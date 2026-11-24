@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Древо семьи Шлёповых и Володиных</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,6 +17,8 @@
     </div>
 
     <div class="stats" id="stats"></div>
+
+    <button class="btn ghost menu-toggle" id="menu-toggle" aria-label="Меню" aria-expanded="false">☰</button>
 
     <div class="tools">
       <button class="btn primary" id="add-person" title="Добавить человека в древо">+ Человек</button>
@@ -48,7 +52,6 @@
 
   <main class="workspace">
     <div class="viewport" id="viewport">
-      <div class="gen-rail" id="gen-labels"></div>
       <div class="canvas" id="canvas">
         <svg id="links" xmlns="http://www.w3.org/2000/svg"></svg>
         <div id="cards"></div>
@@ -59,6 +62,7 @@
   </main>
 
   <div class="toast" id="toast"></div>
+  <button class="fab" id="fab-add" type="button" aria-label="Добавить человека" title="Добавить человека">+</button>
   <div class="modal-root" id="modal-root"></div>
   <input type="file" id="photo-input" accept="image/*" hidden>
 

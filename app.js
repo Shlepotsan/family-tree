@@ -6,14 +6,12 @@
 
   var DATA = window.FAMILY;
   var STORE_KEY = 'family-tree-v2';
-  var ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
   var el = {
     viewport: document.getElementById('viewport'),
     canvas: document.getElementById('canvas'),
     links: document.getElementById('links'),
     cards: document.getElementById('cards'),
-    labels: document.getElementById('gen-labels'),
     panel: document.getElementById('panel'),
     search: document.getElementById('search'),
     results: document.getElementById('results'),
@@ -417,7 +415,6 @@
 
     drawLinks(L, focusUnions());
     drawCards(L);
-    drawLabels(L);
     renderStats(L);
     renderLegend();
     applyView();
@@ -571,32 +568,6 @@
     el.cards.innerHTML = '';
     el.cards.appendChild(frag);
     highlight();
-  }
-
-  function drawLabels(L) {
-    el.labels.innerHTML = L.layers.map(function (layer, i) {
-      return '<div class="gen-label" data-top="' + layer.y + '">' +
-        '<b>' + (ROMAN[i] || i + 1) + '</b><span>' + layer.count + ' ' + plural(layer.count, 'группа', 'группы', 'групп') + '</span></div>';
-    }).join('');
-    positionLabels();
-  }
-
-  function positionLabels() {
-    if (!state.layout) return;
-    var v = state.view;
-    var h = el.viewport.clientHeight;
-    Array.prototype.forEach.call(el.labels.children, function (node) {
-      var top = v.y + Number(node.dataset.top) * v.s;
-      node.style.transform = 'translateY(' + top + 'px)';
-      node.style.opacity = (top < -20 || top > h - 20) ? 0 : 0.9;
-    });
-  }
-
-  function plural(n, one, few, many) {
-    var m10 = n % 10, m100 = n % 100;
-    if (m10 === 1 && m100 !== 11) return one;
-    if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
-    return many;
   }
 
   function renderStats(L) {
@@ -1115,7 +1086,30 @@
 
   /* ==================== вид ==================== */
 
+  var PAN_MARGIN = 120;   // сколько холста обязано остаться на экране
+
+  /* Карта не уезжает за края: всегда видно часть холста. */
+  function clampView() {
+    var v = state.view;
+    var L = state.layout;
+    if (!L) return;
+
+    var w = el.viewport.clientWidth;
+    var h = el.viewport.clientHeight;
+    var cw = L.width * v.s;
+    var ch = L.height * v.s;
+
+    var minX = PAN_MARGIN - cw;
+    var maxX = w - PAN_MARGIN;
+    var minY = PAN_MARGIN - ch;
+    var maxY = h - PAN_MARGIN;
+
+    v.x = minX > maxX ? (w - cw) / 2 : Math.min(maxX, Math.max(minX, v.x));
+    v.y = minY > maxY ? (h - ch) / 2 : Math.min(maxY, Math.max(minY, v.y));
+  }
+
   function applyView() {
+    clampView();
     var v = state.view;
     // zoom пересобирает слой на каждом масштабе — текст остаётся резким.
     // transform только растягивает уже нарисованную картинку и мылит шрифт.
@@ -1128,7 +1122,6 @@
       el.canvas.style.transform = 'translate(' + v.x + 'px,' + v.y + 'px) scale(' + v.s + ')';
     }
     el.zoomValue.textContent = Math.round(v.s * 100) + '%';
-    positionLabels();
   }
 
   function setScale(s, cx, cy) {
@@ -1452,6 +1445,26 @@
     toastTimer = setTimeout(function () { el.toast.classList.remove('show'); }, actionLabel ? 6000 : 2400);
   }
 
+  /* ==================== меню и «плюс» на телефоне ==================== */
+
+  var topbar = document.querySelector('.topbar');
+  var menuToggle = document.getElementById('menu-toggle');
+
+  if (menuToggle) {
+    menuToggle.addEventListener('click', function () {
+      var open = topbar.classList.toggle('open');
+      menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menuToggle.textContent = open ? '✕' : '☰';
+    });
+  }
+
+  var fabAdd = document.getElementById('fab-add');
+  if (fabAdd) {
+    fabAdd.addEventListener('click', function () {
+      document.getElementById('add-person').click();
+    });
+  }
+
   /* ==================== старт ==================== */
 
   load();
@@ -1466,6 +1479,21 @@
     startView();
   }
 
-  window.addEventListener('resize', function () { applyView(); });
+  window.addEventListener('resize', function () {
+    applyView();
+  });
+
+  /* подсказка при первом заходе с телефона */
+  if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) {
+    try {
+      if (!localStorage.getItem('family-tree-hint')) {
+        localStorage.setItem('family-tree-hint', '1');
+        setTimeout(function () {
+          toast('Тяните карту пальцем · касание карточки — открыть · «+» — добавить человека');
+        }, 1500);
+      }
+    } catch (e) { /* приватный режим — просто без подсказки */ }
+  }
+
   pullRemote();
 })();
