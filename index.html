@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Древо семьи Шлёповых и Володиных</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <h1>Древо семьи Шлёповых и Володиных</h1>
+      <p>семь поколений · владимирская земля</p>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="tools">
+      <button class="btn primary" id="add-person" title="Добавить человека в древо">+ Человек</button>
+
+      <div class="search">
+        <span class="icon">⌕</span>
+        <input id="search" type="search" placeholder="Найти человека" autocomplete="off">
+        <div class="results" id="results"></div>
+      </div>
+
+      <button class="btn ghost" id="find-me" title="К моей карточке">Я</button>
+      <button class="btn ghost" id="kin-toggle" title="Подписи родства относительно выбранного человека">Родство</button>
+
+      <div class="drop-wrap">
+        <button class="btn" id="legend-toggle" title="Показать одну ветвь рода">Ветви</button>
+        <div class="legend-pop" id="legend"></div>
+      </div>
+
+      <div class="zoom">
+        <button id="zoom-out" title="Мельче">−</button>
+        <span class="value" id="zoom-value">60%</span>
+        <button id="zoom-in" title="Крупнее">+</button>
+        <button id="zoom-fit" title="Показать всё">⤢</button>
+      </div>
+
+      <button class="btn" id="export" title="Скачать данные деревом JSON">Данные</button>
+      <button class="btn" id="import-label" title="Загрузить ранее выгруженный файл">Загрузить</button>
+      <input type="file" id="import" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <div class="viewport" id="viewport">
+      <div class="gen-rail" id="gen-labels"></div>
+      <div class="canvas" id="canvas">
+        <svg id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="cards"></div>
+      </div>
+    </div>
+
+    <aside class="panel" id="panel"></aside>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <div class="modal-root" id="modal-root"></div>
+  <input type="file" id="photo-input" accept="image/*" hidden>
+
+  <script src="data.js"></script>
+  <script src="relations.js"></script>
+  <script src="layout.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+﻿# служебное
+node_modules/
+*.log
+.secrets/
+.env
+# скриншоты проверки
+shot*.png
