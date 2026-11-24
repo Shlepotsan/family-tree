@@ -71,6 +71,53 @@
     } catch (e) {
       toast('Браузер не сохранил изменения — выгрузите файл кнопкой «Данные»');
     }
+    pushRemote();
+  }
+
+  /* ==================== общая база (Google-таблица) ==================== */
+
+  function pushRemote() {
+    if (!window.FamilySync || !window.FamilySync.enabled) return;
+    window.FamilySync.queue({ people: state.people, unions: state.unions });
+  }
+
+  function pullRemote() {
+    if (!window.FamilySync || !window.FamilySync.enabled) return;
+
+    window.FamilySync.pull().then(function (remote) {
+      if (!remote) return;
+
+      /* таблица пустая — заливаем то, что открыто сейчас */
+      if (!remote.people || !remote.people.length) {
+        window.FamilySync.queue({ people: state.people, unions: state.unions });
+        return;
+      }
+
+      /* нового с прошлого раза нет */
+      if (remote.updated && remote.updated === window.FamilySync.mark()) return;
+
+      /* фотографии в таблицу не ездят — берём из этого браузера */
+      var photos = {};
+      state.people.forEach(function (p) { if (p.photo) photos[p.id] = p.photo; });
+
+      snapshot();
+      state.people = remote.people.map(function (p) {
+        if (!p.photo && photos[p.id]) p.photo = photos[p.id];
+        return p;
+      });
+      state.unions = remote.unions || [];
+
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({ v: 2, people: state.people, unions: state.unions }));
+      } catch (e) { /* приватный режим */ }
+
+      if (remote.updated) window.FamilySync.setMark(remote.updated);
+
+      render();
+      toast('Загружены правки из общей таблицы', 'Вернуть', undoLast);
+    }).catch(function () {
+      toast('Общая таблица недоступна — показаны данные этого браузера');
+    });
   }
 
   function snapshot() {
@@ -1329,4 +1376,5 @@
   }
 
   window.addEventListener('resize', function () { applyView(); });
+  pullRemote();
 })();
