@@ -507,6 +507,7 @@
         parts.push('<circle class="' + clsFor(onSpine, "joint") + '" cx="' + d.trunk.x +
           '" cy="' + d.bus.y + '" r="2.2"' + style + '/>');
         d.stems.forEach(function (st) {
+          if (st.plain) return;   // продолжение после разрыва — точка не нужна
           var onStem = onSpine && focus && focus.p[st.child];
           parts.push('<circle class="' + clsFor(onStem, "joint") + '" cx="' + st.points[0][0] +
             '" cy="' + st.points[0][1] + '" r="2"' + style + '/>');

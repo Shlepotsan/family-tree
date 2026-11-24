@@ -19,7 +19,7 @@
 
   var CARD_W = 182;      // ширина карточки персоны
   var CARD_H = 106;      // высота карточки (с полосой родства сверху)
-  var CARD_GAP = 20;     // между супругами в одной группе
+  var CARD_GAP = 26;     // между супругами в одной группе (ствол посередине не липнет к карточкам)
   var CLUSTER_GAP = 44;  // между соседними группами
   var LAYER_GAP = 120;   // между поколениями
   var PAD = 170;         // поля холста
@@ -380,33 +380,105 @@
     var marriages = [];
     var drops = [];
 
-    // занят ли вертикальный отрезок карточками
+    /* Правило зазора: у линии толщина LINE_W (stroke-width в styles.css),
+       поэтому соседние линии и карточки отстоят от неё минимум на 7 толщин. */
+    var LINE_W = 1.5;        // толщина линии
+    var CLEAR = LINE_W * 7;  // 10,5 px — минимальный просвет
+    var HALF = LINE_W / 2;
+
+    // занят ли вертикальный отрезок карточками (с обязательным просветом)
     function xFree(x, yTop, yBot) {
+      var margin = CLEAR + HALF;
       for (var i = 0; i < cards.length; i++) {
         var c = cards[i];
-        if (c.y < yBot - 1 && c.y + c.h > yTop + 1 && x > c.x + 2 && x < c.x + c.w - 2) return false;
+        if (c.y < yBot - 1 && c.y + c.h > yTop + 1 &&
+            x > c.x - margin && x < c.x + c.w + margin) return false;
       }
       return true;
     }
 
-    // свободный коридор рядом с карточкой ребёнка
+    // свободный коридор рядом с карточкой ребёнка, тоже с просветом CLEAR
     function corridorFor(cardX, cardW, yTop, yBot) {
+      var step = CLEAR + HALF;
       var candidates = [
-        cardX - cardW / 2 - 12,
-        cardX + cardW / 2 + 12,
-        cardX - cardW / 2 - 12 - CARD_W - CARD_GAP,
-        cardX + cardW / 2 + 12 + CARD_W + CARD_GAP
+        cardX - cardW / 2 - step,
+        cardX + cardW / 2 + step,
+        cardX - cardW / 2 - step - CARD_W - CARD_GAP,
+        cardX + cardW / 2 + step + CARD_W + CARD_GAP,
+        cardX - cardW / 2 - step - (CARD_W + CARD_GAP) * 2,
+        cardX + cardW / 2 + step + (CARD_W + CARD_GAP) * 2
       ];
       for (var i = 0; i < candidates.length; i++) {
-        if (xFree(candidates[i], yTop, yBot)) return candidates[i];
+        if (!xFree(candidates[i], yTop, yBot)) continue;
+        if (nearTrunk(candidates[i])) continue;
+        return candidates[i];
       }
       return cardX;
     }
 
+    var trunkXs = [];   // x всех стволов: коридор не должен идти рядом с чужим стволом
+
+    function nearTrunk(x) {
+      for (var i = 0; i < trunkXs.length; i++) {
+        if (Math.abs(trunkXs[i] - x) < CLEAR + LINE_W) return true;
+      }
+      return false;
+    }
+
+    /* Шины по поколениям: у каждого поколения своя зона между карточками,
+       внутри зоны шины разводятся с просветом CLEAR. */
+    var bands = {};
+
+    function busYFor(layer, baseY, childTop, left, right) {
+      var list = bands[layer] || (bands[layer] = []);
+      var min = baseY + CLEAR + HALF;                 // от низа карточки родителя
+      var max = Math.max(min, childTop - CLEAR - HALF); // до верха карточек детей
+
+      var y = min;
+      var guard = 0;
+
+      while (guard++ < 300) {
+        var hit = null;
+        for (var i = 0; i < list.length; i++) {
+          var lane = list[i];
+          var close = Math.abs(lane.y - y) < CLEAR + LINE_W;
+          var overlaps = !(right + CLEAR < lane.x1 || left - CLEAR > lane.x2);
+          if (close && overlaps) { hit = lane; break; }
+        }
+        if (!hit) break;
+        y = hit.y + CLEAR + LINE_W;
+      }
+
+      y = Math.min(y, max);
+      list.push({ y: y, x1: left, x2: right });
+      return y;
+    }
+
+
+    /* Сначала считаем, куда приходят стволы (ширина шины), потом выдаём шине
+       свободную высоту. Если считать наоборот, шины наезжают друг на друга. */
+    var jobs = [];
+
     unions.forEach(function (u) {
       var ca = clusterOf.get(u.partners[0]);
       if (!ca) return;
-      var cb = u.partners[1] ? clusterOf.get(u.partners[1]) : null;
+      jobs.push({ u: u, ca: ca, cb: u.partners[1] ? clusterOf.get(u.partners[1]) : null });
+    });
+
+    jobs.sort(function (a, b) {
+      return (a.ca.layer - b.ca.layer) ||
+        (cardCentre(a.ca, a.u.partners[0]) - cardCentre(b.ca, b.u.partners[0]));
+    });
+
+    /* стволы известны заранее: по ним проверяем, не идёт ли ножка рядом с чужим стволом */
+    jobs.forEach(function (job) {
+      var ax0 = cardCentre(job.ca, job.u.partners[0]);
+      job.dropX = job.cb ? (ax0 + cardCentre(job.cb, job.u.partners[1])) / 2 : ax0;
+    });
+    trunkXs = jobs.map(function (job) { return job.dropX; });
+
+    jobs.forEach(function (job) {
+      var u = job.u, ca = job.ca, cb = job.cb;
 
       var ax = cardCentre(ca, u.partners[0]);
       var ay = layerY(ca.layer) + CARD_H / 2;
@@ -429,37 +501,44 @@
 
       var baseY = layerY(ca.layer) + CARD_H;
       var childTop = Math.min.apply(null, kids.map(function (k) { return layerY(k.cluster.layer); }));
+      var dropX = job.dropX;
 
-      // своя высота шины для каждой семьи, чтобы горизонтали не сливались
-      var lane = (drops.length % 4) * 7;
-      var busY = Math.max(baseY + 20, Math.min(childTop - 16, baseY + 24 + lane));
-
-      var dropX = cb ? (ax + cardCentre(cb, u.partners[1])) / 2 : ax;
-      var stems = [];
-      var xs = [dropX];
-
-      kids.forEach(function (k) {
+      var plan = kids.map(function (k) {
         var idx = k.cluster.members.indexOf(k.id);
         var cardX = k.cluster.x + (idx < 0 ? 0 : idx) * (CARD_W + CARD_GAP) + CARD_W / 2;
         var top = layerY(k.cluster.layer);
         var span = k.cluster.layer - ca.layer;
+        var corridor = null;
 
+        /* длинная связь или ножка, идущая вплотную к чужому стволу — обходим коридором */
         if (span > 1) {
-          // длинная связь: уходим в свободный коридор и спускаемся по нему
-          var corr = corridorFor(cardX, CARD_W, busY, top);
-          stems.push({
-            child: k.id,
-            points: [[corr, busY], [corr, top - 14], [cardX, top - 14], [cardX, top]]
-          });
-          xs.push(corr);
-        } else {
-          stems.push({ child: k.id, points: [[cardX, busY], [cardX, top]] });
-          xs.push(cardX);
+          corridor = corridorFor(cardX, CARD_W, baseY, top);
+        } else if (nearTrunk(cardX) && Math.abs(cardX - dropX) > 0.5) {
+          corridor = corridorFor(cardX, CARD_W, baseY, top);
         }
+
+        return { id: k.id, cardX: cardX, top: top, span: span, corridor: corridor };
       });
 
+      var xs = [dropX].concat(plan.map(function (p) {
+        return p.corridor === null ? p.cardX : p.corridor;
+      }));
       var left = Math.min.apply(null, xs);
       var right = Math.max.apply(null, xs);
+
+      var busY = busYFor(ca.layer, baseY, childTop, left, right);
+      var elbow = CLEAR + HALF;   // отступ горизонтального колена от карточки ребёнка
+
+      var stems = plan.map(function (p) {
+        if (p.corridor === null) {
+          return { child: p.id, points: [[p.cardX, busY], [p.cardX, p.top]] };
+        }
+        // длинная связь: уходим в свободный коридор и спускаемся по нему
+        return {
+          child: p.id,
+          points: [[p.corridor, busY], [p.corridor, p.top - elbow], [p.cardX, p.top - elbow], [p.cardX, p.top]]
+        };
+      });
 
       drops.push({
         id: u.id,
@@ -486,7 +565,7 @@
       });
     });
 
-    var GAP = 6;
+    var GAP = CLEAR + HALF;   // разрыв на пересечении: линии не касаются друг друга
     drops.forEach(function (d) {
       if (!d.bus) return;
       var cuts = [];
@@ -504,6 +583,84 @@
       });
       if (d.bus.x2 > from + 1) segs.push({ x1: from, x2: d.bus.x2 });
       d.busSegs = segs.map(function (s) { return { x1: s.x1, x2: s.x2, y: d.bus.y }; });
+    });
+
+    /* Горизонтали (шины и колена обхода) рвут чужие вертикали: линии не
+       пересекаются, а расходятся с просветом. Разрыв — тот же CLEAR. */
+    var horizontals = [];
+
+    drops.forEach(function (d) {
+      (d.busSegs || []).forEach(function (s) {
+        horizontals.push({ own: d.id, y: s.y, x1: s.x1, x2: s.x2 });
+      });
+      d.stems.forEach(function (st) {
+        for (var i = 0; i < st.points.length - 1; i++) {
+          var a = st.points[i], b = st.points[i + 1];
+          if (Math.abs(a[1] - b[1]) < 0.5 && Math.abs(a[0] - b[0]) > 0.5) {
+            horizontals.push({
+              own: 'jog:' + d.id + ':' + st.child,
+              y: a[1],
+              x1: Math.min(a[0], b[0]),
+              x2: Math.max(a[0], b[0])
+            });
+          }
+        }
+      });
+    });
+
+    drops.forEach(function (d) {
+      var rebuilt = [];
+
+      d.stems.forEach(function (st) {
+        var pts = st.points;
+        var pieces = [];
+        var current = [pts[0]];
+
+        for (var i = 0; i < pts.length - 1; i++) {
+          var a = pts[i], b = pts[i + 1];
+
+          /* горизонтальный шаг — не режем */
+          if (Math.abs(a[0] - b[0]) >= 0.5) {
+            current.push(b);
+            continue;
+          }
+
+          var lo = Math.min(a[1], b[1]);
+          var hi = Math.max(a[1], b[1]);
+          var cuts = [];
+
+          horizontals.forEach(function (h) {
+            if (h.own === d.id) return;
+            if (h.own === 'jog:' + d.id + ':' + st.child) return;
+            if (a[0] <= h.x1 + 0.5 || a[0] >= h.x2 - 0.5) return;
+            if (h.y > lo + 0.5 && h.y < hi - 0.5) cuts.push(h.y);
+          });
+
+          if (!cuts.length) { current.push(b); continue; }
+
+          cuts.sort(function (p, q) { return p - q; });
+          var dir = b[1] > a[1] ? 1 : -1;
+          var last = a[1];
+
+          cuts.forEach(function (y) {
+            var before = y - dir * GAP;
+            var after = y + dir * GAP;
+            if (dir > 0 ? before > last + 0.5 : before < last - 0.5) current.push([a[0], before]);
+            pieces.push(current);
+            current = [[a[0], after]];
+            last = after;
+          });
+
+          current.push(b);
+        }
+
+        pieces.push(current);
+        pieces.forEach(function (p, idx) {
+          rebuilt.push({ child: st.child, points: p, plain: idx > 0 });
+        });
+      });
+
+      d.stems = rebuilt;
     });
 
     var maxX = 0, maxY = 0;
