@@ -6,3 +6,6 @@ node_modules/
 # скриншоты проверки
 shot*.png
 _check/
+# рабочая папка с генерацией данных (локально)
+_src/
+remote-snapshot.json
