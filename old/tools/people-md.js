@@ -6,7 +6,8 @@ global.localStorage = { getItem: function () { return null; }, setItem: function
 var path = require('path');
 var fs = require('fs');
 var root = path.join(__dirname, '..');
-require(path.join(root, 'data.js'));
+var dataRoot = path.join(__dirname, '..', '..');
+require(path.join(dataRoot, 'data.js'));
 require(path.join(root, 'layout.js'));
 
 var fam = window.FAMILY;

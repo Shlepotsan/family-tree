@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#f6f1e6">
+<title>Древо рода</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="titles">
+      <h1 id="title">Древо рода</h1>
+      <div id="count" class="count"></div>
+    </div>
+    <div class="tools">
+      <button id="btn-out" aria-label="Мельче">−</button>
+      <button id="btn-in" aria-label="Крупнее">+</button>
+      <button id="btn-fit" aria-label="Показать всё">всё</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <svg id="tree" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="empty" class="empty" hidden>
+      <p>Пока пусто.</p>
+      <p class="muted">Нажмите «+» и впишите себя: имя и годы жизни — минимум и максимум.</p>
+    </div>
+  </main>
+
+  <button id="fab" aria-label="Добавить человека">+</button>
+
+  <div id="scrim" class="scrim" hidden></div>
+
+  <section id="sheet" class="sheet" hidden aria-modal="true" role="dialog">
+    <div class="handle"></div>
+    <div id="sheet-body"></div>
+  </section>
+
+  <script src="../data.js"></script>
+  <script src="model.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

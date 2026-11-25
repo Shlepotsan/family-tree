@@ -3,7 +3,7 @@
 
 global.window = global;
 global.localStorage = { getItem: function () { return null; }, setItem: function () {} };
-require('../data.js');
+require('../../data.js');
 require('../layout.js');
 
 var L = window.FamilyLayout.compute(window.FAMILY);
