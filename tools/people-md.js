@@ -337,7 +337,9 @@ function byBranch(people) {
     return (branchTitle[a] || a).localeCompare(branchTitle[b] || b, 'ru');
   });
   keys.forEach(function (k) {
-    w('- **' + (branchTitle[k] || k) + '**: ' + map[k].map(nm).join(', '));
+    w('- **' + (branchTitle[k] || k) + '**: ' + map[k].map(function (p) {
+      return nm(p) + ' (`' + p.id + '`)';
+    }).join(', '));
   });
 }
 
